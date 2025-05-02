@@ -5,6 +5,114 @@ Tomas Candelo Montoya
 
 Carlos Farouk Abdalá Rincón
 
+**** 
+# Diseño del circuito de control de temperatura 
+
+En este documento exploraremos el proceso de diseño, implementación y conexión de 2 controladores para implementar un ecosistema IoT capaz de reportar y realizar alertas de temperatura. 
+
+Primero se definieron los elementos que serían obligatorios para el desarrollo de este workshop 
+
+- 2 microcontroladores donde al menos uno de estos tenga un modulo WIFI integrado para poder realizar el envió de los datos a la nube. 
+
+- Un sensor de temperatura (de referencia TMP36 o LM 35)
+
+Además de estos materiales, como requerimiento del workshop se necesitaba implementar una comunicación I2C entre los microcontroladores donde uno de ellos funcionaria como el esclavo y el otro como el maestro. 
+
+## Diseño y simulación de la solución 
+
+Antes de realizar la implementación física se tomo la decisión de realizar una simulación en Thinkercad para realizar las pruebas de conexión y de funcionamiento de la comunicación I2C entre los microcontroladores 
+
+Debido a que esta herramienta de software no cuenta con microcontroladores ESP32, los cuales son los que incluye el modulo de WIFI, por lo que para la simulación no se tiene la funcionalidad de envió de datos a la nube, sin embargo se puede probar la lógica del proyecto y la comunicación haciendo uso de dos microcontroladores Arduino UNO. 
+
+Adicional a estos microcontroladores se utilizo un sensor de temperatura TMP36 ya que era el unico disposible en el software de simulación, adicionalmente este sensor es mucho más preciso y facil de conseguir que el LM35. Tambien se necesito un LED para indicar alertas cuando el sensro registrara una temperatura superior a los 30 °C. 
+
+Para la conexión I2C se realizo una busqueda de casos anteriores para realizar tanto el código de esta como de las conexiones que se deben realizar. Despues de encontrar un documento del propio ThinkerCad que hace uso de esta comunicación se tomo en cuenta que los pines necesarios para esta comunicación son los SDA y los SCL, estos dos pones se deben interconectar entre ellos en los dos arduinos, adicionalmente a esto se deben conectar las tierras para evitar un corto entre ellos y que esten a la misma tierra. 
+
+En esta imagen se puede ver el montaje fisico completo, donde los pines A4 y A5 son los encargados de la comunicación I2C, el pin A0 del Arduino esclavo es el que recibe la señal del sensor de temperatura y el pin A13 del arduino maestro (el cual representa el que sera el microcontrolador ESP32) sera el que envie la señal al LED para que se encienda en caso de que se presente una alerta de temperatura. 
+
+![Simulación realizada en ThinkerCAD](Images/simulacion_montaje.png)
+
+Una vez el montaje se termino se necesito realizar el código de ambos Arduino para que puedan realizar la comunicación de estos, la captura de la señal del sensor de temperatura y la acción de encender el LED alerta. 
+
+```cpp
+#include <Wire.h>
+
+const int sensorPin = A0; // TMP36 en pin A0
+const int i2cAddress = 8; // Dirección del esclavo
+
+float temperatureC = 0.0;
+
+void setup() {
+  Wire.begin(i2cAddress); // Inicia como esclavo
+  Wire.onRequest(requestEvent); // Atender peticiones del maestro
+}
+
+void loop() {
+  int sensorValue = analogRead(sensorPin); // Leer el sensor
+  float voltage = sensorValue * (5.0 / 1023.0); // Voltaje
+  temperatureC = (voltage - 0.5) * 100.0; // Convertir a °C
+
+  delay(500); // Actualiza cada medio segundo
+}
+
+void requestEvent() {
+  int tempToSend = (int)temperatureC; // Convertir float a int simple
+  Wire.write(tempToSend); // Enviar la temperatura
+}
+
+```
+
+Este es el código del arduino esclavo, el cual se encarga de:
+
+- Recibir el voltaje que envía el sensor de temepratura 
+- Convertir dicho voltaje en el valor de temperatura en °C, esto por medio de las ecuaciones que vemos ahí 
+- Iniciar la comunicación I2C con el maestro a travez de la dirección 8
+-Envíar el dato de la temperatura a través de este canal
+
+En cuanto al código del maestro este fue el siguiente 
+
+```cpp
+#include <Wire.h>
+
+const int ledPin = 13; // LED conectado al pin 8
+const int i2cSlaveAddress = 8;
+
+void setup() {
+  Wire.begin(); // Maestro
+  Serial.begin(9600);
+  pinMode(ledPin, OUTPUT);
+}
+
+void loop() {
+  Wire.requestFrom(i2cSlaveAddress, 1);
+
+  if (Wire.available()) {
+    int tempReceived = Wire.read();
+    
+    Serial.print("Temperature: ");
+    Serial.println(tempReceived);
+
+    if (tempReceived > 30) {
+      digitalWrite(ledPin, HIGH); // Prender LED
+    } else {
+      digitalWrite(ledPin, LOW); // Apagar LED
+    }
+  }
+
+  delay(1000);
+}
+```
+
+Donde este código se encarga de:
+
+- Recibir el dato de la temepratura que le envía el Arduino escalvo
+- imprimir el valor de la temperatura que recibe 
+- Verificar que dicho valor sea mayor a 30, en caso de que lo sea encendera el LED ubicado en el pin 13
+
+Cabe resaltar que este código sera modificado al momento de implementar la solución en físico ya que primero debe ser adaptado a uin ESP32 y no a un Arduino. Y, además, debe de tener la comunicación WIFI con la plataforma de Thinkspeak para el reporte de las medidas. 
+
+
+
 # Dashboard de IoT usando Thing Speak
 Como parte de los requerimientos solicitados, fue necesaria la creación de un Dashboard accesible desde internet que monitorizará a tiempo real el funcionamiento completo del sistema, tanto la temperatura que registrará el controlador esclavo con ayuda del sensor TMP36, como los momentos en los que se presentara alguna alerta por temperaturas altas encendiendo en el montaje físico un led.
 
