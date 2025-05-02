@@ -56,4 +56,46 @@ int x = ThingSpeak.writeFields(myChannelNumber, myWriteAPIKey);
 ```
 Para escribir la información recibida en los dashboard, en este caso, el campo o gráfica 1, que es la de temperatura, recibirá y mostrará gráficamente el comportamiento de dicha variable cada 15 segundos debido a la configuración de ThingSpeak, y el campo dos mostrará una gráfica en la que se mostrará con el mismo tiempo de actualización si la variable está o no superando el límite de los 30°C establecidos, siendo el valor de 1 la señal de que se ha superado el límite, y de 0 la señal de que la temperatura esta debajo del límite.
 A continuación una muestra del resultado en ThingSpeak:
+
 ![Dashboards en ThingSpeak](Images/THINGSPEAK_DASHBOARDS.jpg)
+
+# Implementación Física
+
+Para el desarrollo físico del proyecto, fue necesario adquirir un controlador diferente al de la simulación en TinkerCad, esto debido a que los Arduino UNO que son los controladores manejados por el software de simulación no contienen módulos WiFi que permitan desarrollar la implementación de IoT en el proyecto. Por ello, se reemplazo el controlador maestro por un ESP32 que cumpliera dicha característica. La comunicación se manejó de la misma manera cambiando los pines enfocados para la transmisión de y recibimiento de señal de reloj y de datos. 
+
+La comunicación se hizo teniendo en cuenta los pines de transferencia de Datos (SDA) y de señal de reloj para la comunicación I2C (SCL). Las conexiones fueron las siguientes:
+
+## Conexiones Arduino y ESP32
+
+| PIN (Arduino) [1] | Conexión                                  | PIN (ESP32) [2]   | Conexión                                      |
+|---------------|-------------------------------------------|---------------|-----------------------------------------------|
+| A0            | Señal de Sensor de Temperatura            | G2            | Señal de Advertencia de Temperatura (LED)     |
+| A4 (SDA)      | PIN G21 (SDA) del ESP32                   | G21 (SDA)     | PIN A4 (SDA) del Arduino Uno                  |
+| A5 (SCL)      | PIN G22 (SCL) del ESP32                   | G22 (SCL)     | PIN A5 (SCL) del Arduino Uno                  |
+| 5V            | Línea de Alimentación para el Sensor      | 5V            | No Aplica       |
+| GND           | GND común del proyecto                    | GND           | GND común del proyecto                        |
+
+Ambos controladores se alimentaron desde su conexión a la computadora por medio de cables USB. El **ESP32** se alimentó a través de un cable **USB a microUSB**, mientras que el **Arduino Uno** se alimentó mediante un cable **USB a Jack de Alimentación**.
+
+La alimentación de el esto del proyecto se desarrollo dando los 5V que ofrece el Arduino para alimentar el sensor de temperatura.
+
+Las tierras se unificaron para asegurarse de que haya una referencia común de voltaje asegurando el buen funcionamiento de la conexión I2C y evitar señales erróneas [3].
+
+Para la medición de temperatura, se utilizó inicialmente un sensor **LM35**. Sin embargo, debido a los errores frecuentes en la lectura y las reseñas negativas que presenta esta referencia dentro de la comunidad, se optó por reemplazarlo por un sensor **TMP36**, el cual ofrece mayor precisión y estabilidad en las mediciones. Se conecto de acuerdo a [4].
+
+![Sensor de Temperatura TMP36](Images/TMP36.jpg)
+
+Se hizo uso de cables UTP y de Jumpers para la conexión física además de una Protoboard para conectar el led (y una resistencia de 220 Ohms) que indicará de manera real cuando la temperatura supere los 30°C y para el sensor TMP36, y otra para colocar el ESP32 y sus respectivas conexiones.
+
+El montaje final resultó de la siguiente manera.
+![Montaje Físico Final](Images/MONTAJE_FINAL.jpg)
+
+## Referencias  
+
+[1] Arduino, "Arduino Uno Rev3 Datasheet," 2016. [Online]. Available: [https://docs.arduino.cc/resources/datasheets/A000066-datasheet.pdf](https://docs.arduino.cc/resources/datasheets/A000066-datasheet.pdf). [Accessed: 27-Abr-2025].  
+
+[2] Last Minute Engineers, "ESP32 Pinout Reference: Which GPIO pins should you use?," [Online]. Available: https://lastminuteengineers.com/esp32-pinout-reference/. [Accessed: 27-Abr-2025].
+
+[3] Arduino Forum, "I2C common ground," [Online]. Available: https://forum.arduino.cc/t/i2c-common-ground/618661. [Accessed: 27-Abr-2025].
+
+[4] Para Arduino, "Sensor de temperatura TMP36," [Online]. Available: https://paraarduino.com/sensores/sensor-de-temperatura-tmp36/. [Accessed: 27-Abr-2025].
